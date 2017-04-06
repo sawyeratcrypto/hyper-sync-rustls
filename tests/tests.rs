@@ -25,7 +25,7 @@ fn server() {
     .arg("s_client")
     .arg("-ign_eof")
     .arg("-connect")
-    .arg("localhost:1337")
+    .arg("localhost:8111")
     .stdin(Stdio::piped())
     .spawn()
     .expect("cannot run openssl");

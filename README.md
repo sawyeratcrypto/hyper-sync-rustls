@@ -70,8 +70,8 @@ distributed under hyper's license.
  fn main() {
      env_logger::init().unwrap();
 -    let server = Server::http("127.0.0.1:1337").unwrap();
-+    let certs = hyper_rustls::util::load_certs("examples/sample.pem");
-+    let key = hyper_rustls::util::load_private_key("examples/sample.rsa");
++    let certs = hyper_rustls::util::load_certs("examples/sample.pem").unwrap();
++    let key = hyper_rustls::util::load_private_key("examples/sample.rsa").unwrap();
 +    let tls = hyper_rustls::TlsServer::new(certs, key);
 +    let server = Server::https("127.0.0.1:1337", tls).unwrap();
      let _guard = server.handle(echo);

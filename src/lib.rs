@@ -238,9 +238,11 @@ impl TlsServer {
         tls_config.ticketer = rustls::Ticketer::new();
         tls_config.set_single_cert(certs, key);
 
-        TlsServer {
-            cfg: Arc::new(tls_config)
-        }
+        TlsServer { cfg: Arc::new(tls_config) }
+    }
+
+    pub fn with_config(config: rustls::ServerConfig) -> TlsServer {
+        TlsServer { cfg: Arc::new(config) }
     }
 }
 

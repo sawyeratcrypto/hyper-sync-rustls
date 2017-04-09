@@ -265,17 +265,8 @@ pub mod util {
     pub enum Error {
         Io(io::Error),
         BadCerts,
-        BadKey
-    }
-
-    impl Error {
-        #[inline]
-        pub fn io(&self) -> Option<&io::Error> {
-            match *self {
-                Error::Io(ref e) => Some(e),
-                _ => None
-            }
-        }
+        BadKeyCount,
+        BadKey,
     }
 
     impl error::Error for Error {
@@ -283,7 +274,8 @@ pub mod util {
             match *self {
                 Error::Io(ref e) => e.description(),
                 Error::BadCerts => "the contents of the certificates file were invalid",
-                Error::BadKey => "the contents of the private key file were invalid"
+                Error::BadKeyCount => "the private key file contained more than one key",
+                Error::BadKey => "the contents of the private key file were invalid",
             }
         }
     }
@@ -293,7 +285,8 @@ pub mod util {
             match *self {
                 Error::Io(ref e) => write!(f, "I/O Error: {}", e),
                 Error::BadCerts => write!(f, "invalid certificates file contents"),
-                Error::BadKey => write!(f, "invalid private key file contents")
+                Error::BadKeyCount => write!(f, "more than one key in private key file"),
+                Error::BadKey => write!(f, "invalid private key file contents"),
             }
         }
     }
@@ -309,7 +302,7 @@ pub mod util {
         let mut reader = BufReader::new(keyfile);
         let mut keys = pemfile::rsa_private_keys(&mut reader).map_err(|_| Error::BadKey)?;
         if keys.len() != 1 {
-            Err(Error::BadKey)
+            Err(Error::BadKeyCount)
         } else {
             Ok(keys.remove(0))
         }

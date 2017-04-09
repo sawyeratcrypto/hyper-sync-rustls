@@ -1,6 +1,7 @@
-extern crate webpki_roots;
 extern crate rustls;
 extern crate hyper;
+#[cfg(feature = "client")]
+extern crate webpki_roots;
 
 use std::io;
 use std::sync::Arc;
@@ -8,7 +9,9 @@ use std::sync::{Mutex, MutexGuard};
 use std::net::{SocketAddr, Shutdown};
 use std::time::Duration;
 
-use hyper::net::{HttpStream, SslClient, SslServer, NetworkStream};
+use hyper::net::{HttpStream, NetworkStream};
+#[cfg(feature = "client")] use hyper::net::SslClient;
+#[cfg(feature = "server")] use hyper::net::SslServer;
 
 pub struct TlsStream {
     sess: Box<rustls::Session>,
@@ -184,10 +187,12 @@ impl NetworkStream for WrappedStream {
     }
 }
 
+#[cfg(feature = "client")]
 pub struct TlsClient {
     pub cfg: Arc<rustls::ClientConfig>
 }
 
+#[cfg(feature = "client")]
 impl TlsClient {
     pub fn new() -> TlsClient {
         let mut tls_config = rustls::ClientConfig::new();
@@ -201,6 +206,7 @@ impl TlsClient {
     }
 }
 
+#[cfg(feature = "client")]
 impl SslClient for TlsClient {
     type Stream = WrappedStream;
 
@@ -217,11 +223,13 @@ impl SslClient for TlsClient {
     }
 }
 
+#[cfg(feature = "server")]
 #[derive(Clone)]
 pub struct TlsServer {
     pub cfg: Arc<rustls::ServerConfig>
 }
 
+#[cfg(feature = "server")]
 impl TlsServer {
     pub fn new(certs: Vec<rustls::Certificate>, key: rustls::PrivateKey) -> TlsServer {
         let mut tls_config = rustls::ServerConfig::new();
@@ -236,6 +244,7 @@ impl TlsServer {
     }
 }
 
+#[cfg(feature = "server")]
 impl SslServer for TlsServer {
     type Stream = WrappedStream;
 

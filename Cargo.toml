@@ -8,8 +8,13 @@ description = "Rustls+hyper integration for pure rust HTTPS"
 homepage = "https://github.com/ctz/hyper-rustls"
 repository = "https://github.com/ctz/hyper-rustls"
 
+[features]
+default = ["client", "server"]
+client = ["webpki-roots"]
+server = []
+
 [dependencies]
-webpki-roots = "0.7.0"
+webpki-roots = { version = "0.7.0", optional = true }
 rustls = "0.5.6"
 
 [dependencies.hyper]

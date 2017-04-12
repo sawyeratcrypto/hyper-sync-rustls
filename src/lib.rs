@@ -40,7 +40,6 @@ impl TlsStream {
 }
 
 impl io::Read for TlsStream {
-    #[inline]
     fn read(&mut self, buf: &mut [u8]) -> io::Result<usize> {
         loop {
             match self.sess.read(buf)? {
@@ -67,12 +66,14 @@ impl io::Read for TlsStream {
 }
 
 impl io::Write for TlsStream {
+    #[inline]
     fn write(&mut self, buf: &[u8]) -> io::Result<usize> {
         let len = self.sess.write(buf)?;
         self.sess.write_tls(&mut self.underlying)?;
         Ok(len)
     }
 
+    #[inline]
     fn flush(&mut self) -> io::Result<()> {
         let rc = self.sess.flush();
         self.sess.write_tls(&mut self.underlying)?;
@@ -154,6 +155,7 @@ impl TlsClient {
 impl SslClient for TlsClient {
     type Stream = WrappedStream;
 
+    #[inline]
     fn wrap_client(&self, stream: HttpStream, host: &str) -> hyper::Result<WrappedStream> {
         let tls = TlsStream {
             sess: Box::new(rustls::ClientSession::new(&self.cfg, host)),
@@ -182,6 +184,7 @@ impl TlsServer {
         TlsServer { cfg: Arc::new(tls_config) }
     }
 
+    #[inline]
     pub fn with_config(config: rustls::ServerConfig) -> TlsServer {
         TlsServer { cfg: Arc::new(config) }
     }
@@ -191,6 +194,7 @@ impl TlsServer {
 impl SslServer for TlsServer {
     type Stream = WrappedStream;
 
+    #[inline]
     fn wrap_server(&self, stream: HttpStream) -> hyper::Result<WrappedStream> {
         let tls = TlsStream {
             sess: Box::new(rustls::ServerSession::new(&self.cfg)),

@@ -1,7 +1,6 @@
 extern crate rustls;
 extern crate hyper;
-#[cfg(feature = "client")]
-extern crate webpki_roots;
+#[cfg(feature = "client")] extern crate webpki_roots;
 
 use std::io;
 use std::sync::Arc;
@@ -16,68 +15,9 @@ use hyper::net::{HttpStream, NetworkStream};
 pub struct TlsStream {
     sess: Box<rustls::Session>,
     underlying: HttpStream,
-    eof: bool,
-    tls_error: Option<rustls::TLSError>,
-    io_error: Option<io::Error>
 }
 
 impl TlsStream {
-    fn underlying_read(&mut self) {
-        if self.io_error.is_some() || self.tls_error.is_some() {
-            return;
-        }
-
-        if self.sess.wants_read() {
-            match self.sess.read_tls(&mut self.underlying) {
-                Err(err) => {
-                    if err.kind() != io::ErrorKind::WouldBlock {
-                        self.io_error = Some(err);
-                    }
-                },
-                Ok(0) => {
-                    self.eof = true;
-                },
-                Ok(_) => ()
-            }
-        }
-
-        if let Err(err) = self.sess.process_new_packets() {
-            self.tls_error = Some(err);
-        }
-    }
-
-    fn underlying_write(&mut self) {
-        if self.io_error.is_some() || self.tls_error.is_some() {
-            return;
-        }
-
-        while self.io_error.is_none() && self.sess.wants_write() {
-            if let Err(err) = self.sess.write_tls(&mut self.underlying) {
-                if err.kind() != io::ErrorKind::WouldBlock {
-                    self.io_error = Some(err);
-                }
-            }
-        }
-    }
-
-    #[inline]
-    fn underlying_io(&mut self) {
-        self.underlying_write();
-        self.underlying_read();
-    }
-
-    #[inline]
-    fn promote_tls_error(&mut self) -> io::Result<()> {
-        self.tls_error.take()
-            .map(|err| Err(io::Error::new(io::ErrorKind::ConnectionAborted, err)))
-            .unwrap_or(Ok(()))
-    }
-
-    #[inline]
-    fn check_io_error(&mut self) -> io::Result<()> {
-        self.io_error.take().map(Err).unwrap_or(Ok(()))
-    }
-
     #[inline]
     fn close(&mut self, how: Shutdown) -> io::Result<()> {
         self.underlying.close(how)
@@ -100,21 +40,27 @@ impl TlsStream {
 }
 
 impl io::Read for TlsStream {
+    #[inline]
     fn read(&mut self, buf: &mut [u8]) -> io::Result<usize> {
-        // This wants to block if we don't have any data ready.
-        // underlying_read does this.
         loop {
-            self.promote_tls_error()?;
-            self.check_io_error()?;
-
-            if self.eof {
-                return Ok(0);
-            }
-
-            match self.sess.read(buf) {
-                Ok(0) => self.underlying_io(),
-                Ok(n) => return Ok(n),
-                Err(e) => return Err(e)
+            match self.sess.read(buf)? {
+                // If there's no plaintext, either we need to keep reading or
+                // writing TLS-specific things or there's really nothing left.
+                0 => {
+                    if self.sess.wants_write() {
+                        self.sess.write_tls(&mut self.underlying)?;
+                    } else if self.sess.wants_read() {
+                        if self.sess.read_tls(&mut self.underlying)? == 0 {
+                            return Ok(0); // there is no data left to read.
+                        } else {
+                            self.sess.process_new_packets()
+                                .map_err(|e| io::Error::new(io::ErrorKind::ConnectionAborted, e))?;
+                        }
+                    } else {
+                        return Ok(0);
+                    }
+                }
+                n => return Ok(n)
             }
         }
     }
@@ -123,15 +69,13 @@ impl io::Read for TlsStream {
 impl io::Write for TlsStream {
     fn write(&mut self, buf: &[u8]) -> io::Result<usize> {
         let len = self.sess.write(buf)?;
-        self.promote_tls_error()?;
-        self.underlying_write();
+        self.sess.write_tls(&mut self.underlying)?;
         Ok(len)
     }
 
     fn flush(&mut self) -> io::Result<()> {
         let rc = self.sess.flush();
-        self.promote_tls_error()?;
-        self.underlying_write();
+        self.sess.write_tls(&mut self.underlying)?;
         rc
     }
 }
@@ -214,9 +158,6 @@ impl SslClient for TlsClient {
         let tls = TlsStream {
             sess: Box::new(rustls::ClientSession::new(&self.cfg, host)),
             underlying: stream,
-            eof: false,
-            io_error: None,
-            tls_error: None
         };
 
         Ok(WrappedStream(Arc::new(Mutex::new(tls))))
@@ -254,9 +195,6 @@ impl SslServer for TlsServer {
         let tls = TlsStream {
             sess: Box::new(rustls::ServerSession::new(&self.cfg)),
             underlying: stream,
-            eof: false,
-            io_error: None,
-            tls_error: None
         };
 
         Ok(WrappedStream(Arc::new(Mutex::new(tls))))
@@ -280,6 +218,8 @@ pub mod util {
         BadKey,
     }
 
+    pub type Result<T> = ::std::result::Result<T, Error>;
+
     impl error::Error for Error {
         fn description(&self) -> &str {
             match *self {
@@ -302,13 +242,13 @@ pub mod util {
         }
     }
 
-    pub fn load_certs(filename: &str) -> Result<Vec<rustls::Certificate>, Error> {
+    pub fn load_certs(filename: &str) -> Result<Vec<rustls::Certificate>> {
         let certfile = fs::File::open(filename).map_err(|e| Error::Io(e))?;
         let mut reader = BufReader::new(certfile);
         pemfile::certs(&mut reader).map_err(|_| Error::BadCerts)
     }
 
-    pub fn load_private_key(filename: &str) -> Result<rustls::PrivateKey, Error> {
+    pub fn load_private_key(filename: &str) -> Result<rustls::PrivateKey> {
         let keyfile = fs::File::open(filename).map_err(|e| Error::Io(e))?;
         let mut reader = BufReader::new(keyfile);
         let mut keys = pemfile::rsa_private_keys(&mut reader).map_err(|_| Error::BadKey)?;

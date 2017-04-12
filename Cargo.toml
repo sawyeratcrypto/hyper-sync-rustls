@@ -22,5 +22,4 @@ version = "0.10"
 default-features = false
 
 [dev-dependencies]
-log = "0.3"
 env_logger = "0.3"

@@ -8,11 +8,14 @@ use std::sync::{Mutex, MutexGuard};
 use std::net::{SocketAddr, Shutdown};
 use std::time::Duration;
 
-use rustls::{Session, ClientSession, ServerSession};
+use rustls::Session;
+#[cfg(feature = "client")] pub use rustls::ClientSession;
+#[cfg(feature = "server")] pub use rustls::ServerSession;
 
 use hyper::net::{HttpStream, NetworkStream};
 #[cfg(feature = "client")] use hyper::net::SslClient;
 #[cfg(feature = "server")] use hyper::net::SslServer;
+
 
 pub struct TlsStream<S: Session> {
     session: S,

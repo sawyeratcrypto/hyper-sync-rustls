@@ -8,16 +8,18 @@ use std::sync::{Mutex, MutexGuard};
 use std::net::{SocketAddr, Shutdown};
 use std::time::Duration;
 
+use rustls::{Session, ClientSession, ServerSession};
+
 use hyper::net::{HttpStream, NetworkStream};
 #[cfg(feature = "client")] use hyper::net::SslClient;
 #[cfg(feature = "server")] use hyper::net::SslServer;
 
-pub struct TlsStream {
-    sess: Box<rustls::Session>,
+pub struct TlsStream<S: Session> {
+    session: S,
     underlying: HttpStream,
 }
 
-impl TlsStream {
+impl<S: Session> TlsStream<S> {
     #[inline]
     fn close(&mut self, how: Shutdown) -> io::Result<()> {
         self.underlying.close(how)
@@ -39,20 +41,20 @@ impl TlsStream {
     }
 }
 
-impl io::Read for TlsStream {
+impl<S: Session> io::Read for TlsStream<S> {
     fn read(&mut self, buf: &mut [u8]) -> io::Result<usize> {
         loop {
-            match self.sess.read(buf)? {
+            match self.session.read(buf)? {
                 // If there's no plaintext, either we need to keep reading or
                 // writing TLS-specific things or there's really nothing left.
                 0 => {
-                    if self.sess.wants_write() {
-                        self.sess.write_tls(&mut self.underlying)?;
-                    } else if self.sess.wants_read() {
-                        if self.sess.read_tls(&mut self.underlying)? == 0 {
+                    if self.session.wants_write() {
+                        self.session.write_tls(&mut self.underlying)?;
+                    } else if self.session.wants_read() {
+                        if self.session.read_tls(&mut self.underlying)? == 0 {
                             return Ok(0); // there is no data left to read.
                         } else {
-                            self.sess.process_new_packets()
+                            self.session.process_new_packets()
                                 .map_err(|e| io::Error::new(io::ErrorKind::ConnectionAborted, e))?;
                         }
                     } else {
@@ -65,40 +67,46 @@ impl io::Read for TlsStream {
     }
 }
 
-impl io::Write for TlsStream {
+impl<S: Session> io::Write for TlsStream<S> {
     #[inline]
     fn write(&mut self, buf: &[u8]) -> io::Result<usize> {
-        let len = self.sess.write(buf)?;
-        self.sess.write_tls(&mut self.underlying)?;
+        let len = self.session.write(buf)?;
+        self.session.write_tls(&mut self.underlying)?;
         Ok(len)
     }
 
     #[inline]
     fn flush(&mut self) -> io::Result<()> {
-        let rc = self.sess.flush();
-        self.sess.write_tls(&mut self.underlying)?;
+        let rc = self.session.flush();
+        self.session.write_tls(&mut self.underlying)?;
         rc
     }
 }
 
-#[derive(Clone)]
-pub struct WrappedStream(Arc<Mutex<TlsStream>>);
+pub struct WrappedStream<S: Session>(Arc<Mutex<TlsStream<S>>>);
 
-impl WrappedStream {
+impl<S: Session> Clone for WrappedStream<S> {
     #[inline]
-    fn lock(&self) -> MutexGuard<TlsStream> {
+    fn clone(&self) -> Self {
+        WrappedStream(self.0.clone())
+    }
+}
+
+impl<S: Session> WrappedStream<S> {
+    #[inline]
+    fn lock(&self) -> MutexGuard<TlsStream<S>> {
         self.0.lock().unwrap_or_else(|e| e.into_inner())
     }
 }
 
-impl io::Read for WrappedStream {
+impl<S: Session> io::Read for WrappedStream<S> {
     #[inline]
     fn read(&mut self, buf: &mut [u8]) -> io::Result<usize> {
         self.lock().read(buf)
     }
 }
 
-impl io::Write for WrappedStream {
+impl<S: Session> io::Write for WrappedStream<S> {
     #[inline]
     fn write(&mut self, buf: &[u8]) -> io::Result<usize> {
         self.lock().write(buf)
@@ -110,7 +118,7 @@ impl io::Write for WrappedStream {
     }
 }
 
-impl NetworkStream for WrappedStream {
+impl<S: Session + 'static> NetworkStream for WrappedStream<S> {
     #[inline]
     fn peer_addr(&mut self) -> io::Result<SocketAddr> {
         self.lock().peer_addr()
@@ -133,6 +141,7 @@ impl NetworkStream for WrappedStream {
 }
 
 #[cfg(feature = "client")]
+#[derive(Clone)]
 pub struct TlsClient {
     pub cfg: Arc<rustls::ClientConfig>
 }
@@ -153,12 +162,12 @@ impl TlsClient {
 
 #[cfg(feature = "client")]
 impl SslClient for TlsClient {
-    type Stream = WrappedStream;
+    type Stream = WrappedStream<ClientSession>;
 
     #[inline]
-    fn wrap_client(&self, stream: HttpStream, host: &str) -> hyper::Result<WrappedStream> {
+    fn wrap_client(&self, stream: HttpStream, host: &str) -> hyper::Result<WrappedStream<ClientSession>> {
         let tls = TlsStream {
-            sess: Box::new(rustls::ClientSession::new(&self.cfg, host)),
+            session: rustls::ClientSession::new(&self.cfg, host),
             underlying: stream,
         };
 
@@ -192,12 +201,12 @@ impl TlsServer {
 
 #[cfg(feature = "server")]
 impl SslServer for TlsServer {
-    type Stream = WrappedStream;
+    type Stream = WrappedStream<ServerSession>;
 
     #[inline]
-    fn wrap_server(&self, stream: HttpStream) -> hyper::Result<WrappedStream> {
+    fn wrap_server(&self, stream: HttpStream) -> hyper::Result<WrappedStream<ServerSession>> {
         let tls = TlsStream {
-            sess: Box::new(rustls::ServerSession::new(&self.cfg)),
+            session: rustls::ServerSession::new(&self.cfg),
             underlying: stream,
         };
 

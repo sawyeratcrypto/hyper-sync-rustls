@@ -225,6 +225,7 @@ pub mod util {
 
     use rustls;
     use rustls::internal::pemfile;
+    use rustls::sign::RSASigner;
 
     #[derive(Debug)]
     pub enum Error {
@@ -267,11 +268,20 @@ pub mod util {
     pub fn load_private_key(filename: &str) -> Result<rustls::PrivateKey> {
         let keyfile = fs::File::open(filename).map_err(|e| Error::Io(e))?;
         let mut reader = BufReader::new(keyfile);
-        let mut keys = pemfile::rsa_private_keys(&mut reader).map_err(|_| Error::BadKey)?;
+        let mut keys = pemfile::rsa_private_keys(&mut reader)
+            .map_err(|_| Error::BadKey)?;
+
+        // Ensure there's only one key in the file.
         if keys.len() != 1 {
-            Err(Error::BadKeyCount)
+            return Err(Error::BadKeyCount);
+        }
+
+        // Ensure we can use the key.
+        let key = keys.remove(0);
+        if RSASigner::new(&key).is_err() {
+            Err(Error::BadKey)
         } else {
-            Ok(keys.remove(0))
+            Ok(key)
         }
     }
 }

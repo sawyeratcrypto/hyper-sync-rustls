@@ -266,18 +266,31 @@ pub mod util {
     }
 
     pub fn load_private_key(filename: &str) -> Result<rustls::PrivateKey> {
-        let keyfile = fs::File::open(filename).map_err(|e| Error::Io(e))?;
-        let mut reader = BufReader::new(keyfile);
-        let mut keys = pemfile::rsa_private_keys(&mut reader)
-            .map_err(|_| Error::BadKey)?;
+        use std::io::Seek;
+        let start = io::SeekFrom::Start(0);
 
-        // Ensure there's only one key in the file.
-        if keys.len() != 1 {
-            return Err(Error::BadKeyCount);
+        fn expect_one(mut keys: Vec<rustls::PrivateKey>) -> Result<rustls::PrivateKey> {
+            if keys.len() != 1 {
+                Err(Error::BadKeyCount)
+            } else {
+                Ok(keys.remove(0))
+            }
         }
 
+        let keyfile = fs::File::open(filename).map_err(Error::Io)?;
+        let mut reader = BufReader::new(keyfile);
+        // Try reading one pkcs8 private key, or else one rsa private key
+        let key = pemfile::pkcs8_private_keys(&mut reader)
+            .map_err(|_| Error::BadKey)
+            .and_then(expect_one)
+            .or_else(|_| {
+                reader.seek(start).map_err(Error::Io)?;
+                pemfile::rsa_private_keys(&mut reader)
+                    .map_err(|_| Error::BadKey)
+                    .and_then(expect_one)
+            })?;
+
         // Ensure we can use the key.
-        let key = keys.remove(0);
         if RSASigner::new(&key).is_err() {
             Err(Error::BadKey)
         } else {

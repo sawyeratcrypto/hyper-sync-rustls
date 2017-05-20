@@ -267,27 +267,29 @@ pub mod util {
 
     pub fn load_private_key(filename: &str) -> Result<rustls::PrivateKey> {
         use std::io::Seek;
-        let start = io::SeekFrom::Start(0);
-
-        fn expect_one(mut keys: Vec<rustls::PrivateKey>) -> Result<rustls::PrivateKey> {
-            if keys.len() != 1 {
-                Err(Error::BadKeyCount)
-            } else {
-                Ok(keys.remove(0))
-            }
-        }
+        use std::io::BufRead;
 
         let keyfile = fs::File::open(filename).map_err(Error::Io)?;
         let mut reader = BufReader::new(keyfile);
-        // Try reading one pkcs8 private key, or else one rsa private key
-        let key = pemfile::pkcs8_private_keys(&mut reader)
+
+        let private_keys_fn = {
+            let mut line = String::new();
+            reader.read_line(&mut line).map_err(Error::Io)?;
+            let private_keys_fn = match line.trim_right() {
+                "-----BEGIN RSA PRIVATE KEY-----" => pemfile::rsa_private_keys,
+                "-----BEGIN PRIVATE KEY-----" => pemfile::pkcs8_private_keys,
+                _ => return Err(Error::BadKey)
+            };
+            reader.seek(io::SeekFrom::Start(0)).map_err(Error::Io)?;
+            private_keys_fn
+        };
+
+        let key = private_keys_fn(&mut reader)
             .map_err(|_| Error::BadKey)
-            .and_then(expect_one)
-            .or_else(|_| {
-                reader.seek(start).map_err(Error::Io)?;
-                pemfile::rsa_private_keys(&mut reader)
-                    .map_err(|_| Error::BadKey)
-                    .and_then(expect_one)
+            .and_then(|mut keys| match keys.len() {
+                0 => Err(Error::BadKey),
+                1 => Ok(keys.remove(0)),
+                _ => Err(Error::BadKeyCount),
             })?;
 
         // Ensure we can use the key.

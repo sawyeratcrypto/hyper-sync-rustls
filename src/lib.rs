@@ -272,16 +272,16 @@ pub mod util {
         let keyfile = fs::File::open(filename).map_err(Error::Io)?;
         let mut reader = BufReader::new(keyfile);
 
-        let private_keys_fn = {
-            let mut line = String::new();
-            reader.read_line(&mut line).map_err(Error::Io)?;
-            let private_keys_fn = match line.trim_right() {
-                "-----BEGIN RSA PRIVATE KEY-----" => pemfile::rsa_private_keys,
-                "-----BEGIN PRIVATE KEY-----" => pemfile::pkcs8_private_keys,
-                _ => return Err(Error::BadKey)
-            };
-            reader.seek(io::SeekFrom::Start(0)).map_err(Error::Io)?;
-            private_keys_fn
+        // "rsa" (PKCS1) PEM files have a different first-line header
+        // than PKCS8 PEM files, use that to determine parse function.
+        let mut first_line = String::new();
+        reader.read_line(&mut first_line).map_err(Error::Io)?;
+        reader.seek(io::SeekFrom::Start(0)).map_err(Error::Io)?;
+
+        let private_keys_fn = match first_line.trim_right() {
+            "-----BEGIN RSA PRIVATE KEY-----" => pemfile::rsa_private_keys,
+            "-----BEGIN PRIVATE KEY-----" => pemfile::pkcs8_private_keys,
+            _ => return Err(Error::BadKey)
         };
 
         let key = private_keys_fn(&mut reader)

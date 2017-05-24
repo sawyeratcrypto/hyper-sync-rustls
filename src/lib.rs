@@ -266,18 +266,33 @@ pub mod util {
     }
 
     pub fn load_private_key(filename: &str) -> Result<rustls::PrivateKey> {
-        let keyfile = fs::File::open(filename).map_err(|e| Error::Io(e))?;
-        let mut reader = BufReader::new(keyfile);
-        let mut keys = pemfile::rsa_private_keys(&mut reader)
-            .map_err(|_| Error::BadKey)?;
+        use std::io::Seek;
+        use std::io::BufRead;
 
-        // Ensure there's only one key in the file.
-        if keys.len() != 1 {
-            return Err(Error::BadKeyCount);
-        }
+        let keyfile = fs::File::open(filename).map_err(Error::Io)?;
+        let mut reader = BufReader::new(keyfile);
+
+        // "rsa" (PKCS1) PEM files have a different first-line header
+        // than PKCS8 PEM files, use that to determine parse function.
+        let mut first_line = String::new();
+        reader.read_line(&mut first_line).map_err(Error::Io)?;
+        reader.seek(io::SeekFrom::Start(0)).map_err(Error::Io)?;
+
+        let private_keys_fn = match first_line.trim_right() {
+            "-----BEGIN RSA PRIVATE KEY-----" => pemfile::rsa_private_keys,
+            "-----BEGIN PRIVATE KEY-----" => pemfile::pkcs8_private_keys,
+            _ => return Err(Error::BadKey)
+        };
+
+        let key = private_keys_fn(&mut reader)
+            .map_err(|_| Error::BadKey)
+            .and_then(|mut keys| match keys.len() {
+                0 => Err(Error::BadKey),
+                1 => Ok(keys.remove(0)),
+                _ => Err(Error::BadKeyCount),
+            })?;
 
         // Ensure we can use the key.
-        let key = keys.remove(0);
         if RSASigner::new(&key).is_err() {
             Err(Error::BadKey)
         } else {

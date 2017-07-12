@@ -1,7 +1,7 @@
 #![deny(warnings)]
 extern crate hyper;
 
-extern crate hyper_rustls;
+extern crate hyper_sync_rustls;
 
 extern crate env_logger;
 
@@ -25,7 +25,7 @@ fn main() {
         }
     };
 
-    let tls = hyper_rustls::TlsClient::new();
+    let tls = hyper_sync_rustls::TlsClient::new();
 
     let client = match env::var("HTTP_PROXY") {
         Ok(mut proxy) => {

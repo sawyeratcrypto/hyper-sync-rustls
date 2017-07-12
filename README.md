@@ -1,26 +1,20 @@
-# hyper-rustls
-This is an integration between the [rustls TLS stack](https://github.com/ctz/rustls)
-and the [hyper HTTP library](https://github.com/hyperium/hyper).
+# `hyper-sync-rustls`
 
-[![Build Status](https://travis-ci.org/ctz/hyper-rustls.svg?branch=master)](https://travis-ci.org/ctz/hyper-rustls)
-[![Crate](https://img.shields.io/crates/v/hyper-rustls.svg)](https://crates.io/crates/hyper-rustls)
+This is an integration between the [`rustls` TLS
+stack](https://github.com/ctz/rustls) and the synchronous version (0.10) of the
+[`hyper` HTTP library](https://github.com/hyperium/hyper). This is a maintained
+fork of [`hyper_rustls`](https://github.com/ctz/hyper-rustls) for synchronous
+hyper.
 
-Implementations are provided of
-[`hyper::net::SslClient`](http://hyper.rs/hyper/v0.9.10/hyper/net/trait.SslClient.html),
-[`hyper::net::SslServer`](http://hyper.rs/hyper/v0.9.10/hyper/net/trait.SslServer.html)
-and [`hyper::net::NetworkStream`](http://hyper.rs/hyper/v0.9.10/hyper/net/trait.NetworkStream.html).
+## Usage
 
-By default clients verify certificates using the `webpki-roots` crate, which includes
-the Mozilla root CAs.
+These are provided as an example of the minimal changes needed to use rustls in
+your existing hyper-based program. Note that these are derived works of original
+hyper source, and are distributed under hyper's license.
 
-# Examples
-These are provided as an example of the minimal changes needed to
-use rustls in your existing hyper-using program.
+### Client
 
-Note that these are derived works of original hyper source, and are
-distributed under hyper's license.
-
-## Client
+Enable the `client` feature for access to client types.
 
 ```diff
 --- ../hyper/examples/client.rs	2016-10-03 23:29:00.850098245 +0100
@@ -53,7 +47,9 @@ distributed under hyper's license.
      let mut res = client.get(&*url)
 ```
 
-## Server
+### Server
+
+Enable the `server` feature for access to client types.
 
 ```diff
 --- ../hyper/examples/server.rs	2016-10-03 23:29:00.850098245 +0100
@@ -80,14 +76,9 @@ distributed under hyper's license.
  }
 ```
 
-# License
-hyper-rustls is distributed under the following three licenses:
+## License
 
-- Apache License version 2.0.
-- MIT license.
-- ISC license.
+`hyper-sync-rustls` is licensed under either of the following, at your option:
 
-These are included as LICENSE-APACHE, LICENSE-MIT and LICENSE-ISC
-respectively.  You may use this software under the terms of any
-of these licenses, at your option.
-
+ * Apache License, Version 2.0 ([full text](http://www.apache.org/licenses/LICENSE-2.0))
+ * MIT License ([full text](http://opensource.org/licenses/MIT))

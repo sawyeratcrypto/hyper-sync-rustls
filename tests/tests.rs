@@ -1,4 +1,4 @@
-extern crate hyper_rustls;
+extern crate hyper_sync_rustls;
 
 use std::process::{Command, Stdio};
 use std::io::Write;
@@ -51,12 +51,12 @@ fn load_pkcs8_key_format() {
     // generated with:
     //  openssl genpkey -algorithm rsa -out tests/pkcs8.pem \
     //      -pkeyopt rsa_keygen_bits:4096
-    assert!(hyper_rustls::util::load_private_key("tests/pkcs8.pem").is_ok());
+    assert!(hyper_sync_rustls::util::load_private_key("tests/pkcs8.pem").is_ok());
 }
 
 #[test]
 fn load_rsa_key_format() {
     // generated with:
     //  openssl rsa -in tests/pkcs8.pem -out tests/rsa.pem
-    assert!(hyper_rustls::util::load_private_key("tests/rsa.pem").is_ok());
+    assert!(hyper_sync_rustls::util::load_private_key("tests/rsa.pem").is_ok());
 }

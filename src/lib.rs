@@ -1,6 +1,7 @@
 extern crate rustls;
 extern crate hyper;
-#[cfg(feature = "client")] extern crate webpki_roots;
+#[cfg(feature = "client")]
+extern crate webpki_roots;
 
 use std::io;
 use std::sync::Arc;
@@ -9,12 +10,16 @@ use std::net::{SocketAddr, Shutdown};
 use std::time::Duration;
 
 use rustls::Session;
-#[cfg(feature = "client")] pub use rustls::ClientSession;
-#[cfg(feature = "server")] pub use rustls::ServerSession;
+#[cfg(feature = "client")]
+pub use rustls::ClientSession;
+#[cfg(feature = "server")]
+pub use rustls::ServerSession;
 
 use hyper::net::{HttpStream, NetworkStream};
-#[cfg(feature = "client")] use hyper::net::SslClient;
-#[cfg(feature = "server")] use hyper::net::SslServer;
+#[cfg(feature = "client")]
+use hyper::net::SslClient;
+#[cfg(feature = "server")]
+use hyper::net::SslServer;
 
 pub struct TlsStream<S: Session> {
     session: S,
@@ -56,14 +61,15 @@ impl<S: Session> io::Read for TlsStream<S> {
                         if self.session.read_tls(&mut self.underlying)? == 0 {
                             return Ok(0); // there is no data left to read.
                         } else {
-                            self.session.process_new_packets()
+                            self.session
+                                .process_new_packets()
                                 .map_err(|e| io::Error::new(io::ErrorKind::ConnectionAborted, e))?;
                         }
                     } else {
                         return Ok(0);
                     }
                 }
-                n => return Ok(n)
+                n => return Ok(n),
             }
         }
     }
@@ -145,7 +151,7 @@ impl<S: Session + 'static> NetworkStream for WrappedStream<S> {
 #[cfg(feature = "client")]
 #[derive(Clone)]
 pub struct TlsClient {
-    pub cfg: Arc<rustls::ClientConfig>
+    pub cfg: Arc<rustls::ClientConfig>,
 }
 
 #[cfg(feature = "client")]
@@ -154,10 +160,12 @@ impl TlsClient {
         let mut tls_config = rustls::ClientConfig::new();
         let cache = rustls::ClientSessionMemoryCache::new(64);
         tls_config.set_persistence(cache);
-        tls_config.root_store.add_trust_anchors(&webpki_roots::ROOTS);
+        tls_config
+            .root_store
+            .add_trust_anchors(&webpki_roots::ROOTS);
 
         TlsClient {
-            cfg: Arc::new(tls_config)
+            cfg: Arc::new(tls_config),
         }
     }
 }
@@ -167,7 +175,11 @@ impl SslClient for TlsClient {
     type Stream = WrappedStream<ClientSession>;
 
     #[inline]
-    fn wrap_client(&self, stream: HttpStream, host: &str) -> hyper::Result<WrappedStream<ClientSession>> {
+    fn wrap_client(
+        &self,
+        stream: HttpStream,
+        host: &str,
+    ) -> hyper::Result<WrappedStream<ClientSession>> {
         let tls = TlsStream {
             session: rustls::ClientSession::new(&self.cfg, host),
             underlying: stream,
@@ -180,7 +192,7 @@ impl SslClient for TlsClient {
 #[cfg(feature = "server")]
 #[derive(Clone)]
 pub struct TlsServer {
-    pub cfg: Arc<rustls::ServerConfig>
+    pub cfg: Arc<rustls::ServerConfig>,
 }
 
 #[cfg(feature = "server")]
@@ -192,12 +204,16 @@ impl TlsServer {
         tls_config.ticketer = rustls::Ticketer::new();
         tls_config.set_single_cert(certs, key);
 
-        TlsServer { cfg: Arc::new(tls_config) }
+        TlsServer {
+            cfg: Arc::new(tls_config),
+        }
     }
 
     #[inline]
     pub fn with_config(config: rustls::ServerConfig) -> TlsServer {
-        TlsServer { cfg: Arc::new(config) }
+        TlsServer {
+            cfg: Arc::new(config),
+        }
     }
 }
 
@@ -280,7 +296,7 @@ pub mod util {
         let private_keys_fn = match first_line.trim_right() {
             "-----BEGIN RSA PRIVATE KEY-----" => pemfile::rsa_private_keys,
             "-----BEGIN PRIVATE KEY-----" => pemfile::pkcs8_private_keys,
-            _ => return Err(Error::BadKey)
+            _ => return Err(Error::BadKey),
         };
 
         let key = private_keys_fn(&mut reader)

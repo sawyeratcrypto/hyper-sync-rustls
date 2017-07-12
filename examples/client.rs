@@ -33,7 +33,11 @@ fn main() {
             let mut port = 80;
             if let Some(colon) = proxy.rfind(':') {
                 port = proxy[colon + 1..].parse().unwrap_or_else(|e| {
-                    panic!("HTTP_PROXY is malformed: {:?}, port parse error: {}", proxy, e);
+                    panic!(
+                        "HTTP_PROXY is malformed: {:?}, port parse error: {}",
+                        proxy,
+                        e
+                    );
                 });
                 proxy.truncate(colon);
             }
@@ -50,9 +54,11 @@ fn main() {
         }
     };
 
-    let mut res = client.get(&*url)
+    let mut res = client
+        .get(&*url)
         .header(Connection::close())
-        .send().unwrap();
+        .send()
+        .unwrap();
 
     println!("Response: {}", res.status);
     println!("Headers:\n{}", res.headers);

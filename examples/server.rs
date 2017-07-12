@@ -20,17 +20,19 @@ macro_rules! try_return(
 
 fn echo(mut req: Request, mut res: Response) {
     match req.uri {
-        AbsolutePath(ref path) => match (&req.method, &path[..]) {
-            (&Get, "/") | (&Get, "/echo") => {
-                try_return!(res.send(b"Try POST /echo"));
-                return;
-            },
-            (&Post, "/echo") => (), // fall through, fighting mutable borrows
-            _ => {
-                *res.status_mut() = hyper::NotFound;
-                return;
+        AbsolutePath(ref path) => {
+            match (&req.method, &path[..]) {
+                (&Get, "/") | (&Get, "/echo") => {
+                    try_return!(res.send(b"Try POST /echo"));
+                    return;
+                }
+                (&Post, "/echo") => (), // fall through, fighting mutable borrows
+                _ => {
+                    *res.status_mut() = hyper::NotFound;
+                    return;
+                }
             }
-        },
+        }
         _ => {
             return;
         }

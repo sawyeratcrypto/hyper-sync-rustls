@@ -3,7 +3,7 @@
 This is an integration between the [`rustls` TLS
 stack](https://github.com/ctz/rustls) and the synchronous version (0.10) of the
 [`hyper` HTTP library](https://github.com/hyperium/hyper). This is a maintained
-fork of [`hyper_rustls`](https://github.com/ctz/hyper-rustls) for synchronous
+fork of [`hyper_sync_rustls`](https://github.com/ctz/hyper-rustls) for synchronous
 hyper.
 
 ## Usage
@@ -23,7 +23,7 @@ Enable the `client` feature for access to client types.
  #![deny(warnings)]
  extern crate hyper;
  
-+extern crate hyper_rustls;
++extern crate hyper_sync_rustls;
 +
  extern crate env_logger;
  
@@ -41,7 +41,7 @@ Enable the `client` feature for access to client types.
              Client::with_http_proxy(proxy, port)
          },
 -        _ => Client::new()
-+        _ => Client::with_connector(HttpsConnector::new(hyper_rustls::TlsClient::new()))
++        _ => Client::with_connector(HttpsConnector::new(hyper_sync_rustls::TlsClient::new()))
      };
  
      let mut res = client.get(&*url)
@@ -57,7 +57,7 @@ Enable the `server` feature for access to client types.
 @@ -1,5 +1,6 @@
  #![deny(warnings)]
  extern crate hyper;
-+extern crate hyper_rustls;
++extern crate hyper_sync_rustls;
  extern crate env_logger;
  
  use std::io::copy;
@@ -66,9 +66,9 @@ Enable the `server` feature for access to client types.
  fn main() {
      env_logger::init().unwrap();
 -    let server = Server::http("127.0.0.1:1337").unwrap();
-+    let certs = hyper_rustls::util::load_certs("examples/sample.pem").unwrap();
-+    let key = hyper_rustls::util::load_private_key("examples/sample.rsa").unwrap();
-+    let tls = hyper_rustls::TlsServer::new(certs, key);
++    let certs = hyper_sync_rustls::util::load_certs("examples/sample.pem").unwrap();
++    let key = hyper_sync_rustls::util::load_private_key("examples/sample.rsa").unwrap();
++    let tls = hyper_sync_rustls::TlsServer::new(certs, key);
 +    let server = Server::https("127.0.0.1:1337", tls).unwrap();
      let _guard = server.handle(echo);
 -    println!("Listening on http://127.0.0.1:1337");

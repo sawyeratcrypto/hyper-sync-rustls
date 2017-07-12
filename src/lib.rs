@@ -16,14 +16,13 @@ use hyper::net::{HttpStream, NetworkStream};
 #[cfg(feature = "client")] use hyper::net::SslClient;
 #[cfg(feature = "server")] use hyper::net::SslServer;
 
-
 pub struct TlsStream<S: Session> {
     session: S,
     underlying: HttpStream,
 }
 
 impl<S: Session> TlsStream<S> {
-    #[inline]
+    #[inline(always)]
     fn close(&mut self, how: Shutdown) -> io::Result<()> {
         self.underlying.close(how)
     }

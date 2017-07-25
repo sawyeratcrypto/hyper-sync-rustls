@@ -3,7 +3,7 @@
 This is an integration between the [`rustls` TLS
 stack](https://github.com/ctz/rustls) and the synchronous version (0.10) of the
 [`hyper` HTTP library](https://github.com/hyperium/hyper). This is a maintained
-fork of [`hyper_sync_rustls`](https://github.com/ctz/hyper-rustls) for synchronous
+fork of [`hyper-rustls`](https://github.com/ctz/hyper-rustls) for synchronous
 hyper.
 
 ## Usage

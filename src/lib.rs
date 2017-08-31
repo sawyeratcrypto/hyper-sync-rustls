@@ -160,9 +160,8 @@ impl TlsClient {
         let mut tls_config = rustls::ClientConfig::new();
         let cache = rustls::ClientSessionMemoryCache::new(64);
         tls_config.set_persistence(cache);
-        tls_config
-            .root_store
-            .add_trust_anchors(&webpki_roots::ROOTS);
+        tls_config.root_store
+            .add_server_trust_anchors(&webpki_roots::TLS_SERVER_ROOTS);
 
         TlsClient {
             cfg: Arc::new(tls_config),
@@ -240,7 +239,7 @@ pub mod util {
 
     use rustls;
     use rustls::internal::pemfile;
-    use rustls::sign::RSASigner;
+    use rustls::sign::RSASigningKey;
 
     #[derive(Debug)]
     pub enum Error {
@@ -287,8 +286,8 @@ pub mod util {
         let keyfile = fs::File::open(filename).map_err(Error::Io)?;
         let mut reader = BufReader::new(keyfile);
 
-        // "rsa" (PKCS1) PEM files have a different first-line header
-        // than PKCS8 PEM files, use that to determine parse function.
+        // "rsa" (PKCS1) PEM files have a different first-line header than PKCS8
+        // PEM files, use that to determine the parse function to use.
         let mut first_line = String::new();
         reader.read_line(&mut first_line).map_err(Error::Io)?;
         reader.seek(io::SeekFrom::Start(0)).map_err(Error::Io)?;
@@ -308,7 +307,7 @@ pub mod util {
             })?;
 
         // Ensure we can use the key.
-        if RSASigner::new(&key).is_err() {
+        if RSASigningKey::new(&key).is_err() {
             Err(Error::BadKey)
         } else {
             Ok(key)

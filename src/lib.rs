@@ -10,16 +10,12 @@ use std::net::{SocketAddr, Shutdown};
 use std::time::Duration;
 
 use rustls::Session;
-#[cfg(feature = "client")]
-pub use rustls::ClientSession;
-#[cfg(feature = "server")]
-pub use rustls::ServerSession;
+#[cfg(feature = "client")] pub use rustls::ClientSession;
+#[cfg(feature = "server")] pub use rustls::ServerSession;
 
 use hyper::net::{HttpStream, NetworkStream};
-#[cfg(feature = "client")]
-use hyper::net::SslClient;
-#[cfg(feature = "server")]
-use hyper::net::SslServer;
+#[cfg(feature = "client")] use hyper::net::SslClient;
+#[cfg(feature = "server")] use hyper::net::SslServer;
 
 pub struct TlsStream<S: Session> {
     session: S,
@@ -61,9 +57,17 @@ impl<S: Session> io::Read for TlsStream<S> {
                         if self.session.read_tls(&mut self.underlying)? == 0 {
                             return Ok(0); // there is no data left to read.
                         } else {
-                            self.session
-                                .process_new_packets()
-                                .map_err(|e| io::Error::new(io::ErrorKind::ConnectionAborted, e))?;
+                            if let Err(err) = self.session.process_new_packets() {
+                                // flush queued messages before returning an Err
+                                // in order to send alerts instead of abruptly
+                                // closing the socket
+                                if self.session.wants_write() {
+                                    // ignore result to avoid masking original error
+                                    let _ = self.session.write_tls(&mut self.underlying);
+                                }
+
+                                return Err(io::Error::new(io::ErrorKind::Other, err));
+                            }
                         }
                     } else {
                         return Ok(0);

@@ -1,7 +1,11 @@
 extern crate rustls;
 extern crate hyper;
+
 #[cfg(feature = "client")]
 extern crate webpki_roots;
+
+#[cfg(feature = "client")]
+extern crate webpki;
 
 use std::io;
 use std::sync::Arc;
@@ -183,6 +187,12 @@ impl SslClient for TlsClient {
         stream: HttpStream,
         host: &str,
     ) -> hyper::Result<WrappedStream<ClientSession>> {
+        use hyper::error::*;
+        use webpki::DNSNameRef;
+
+        let host = DNSNameRef::try_from_ascii_str(host)
+            .map_err(|_| Error::Uri(ParseError::InvalidDomainCharacter))?;
+
         let tls = TlsStream {
             session: rustls::ClientSession::new(&self.cfg, host),
             underlying: stream,
@@ -201,7 +211,8 @@ pub struct TlsServer {
 #[cfg(feature = "server")]
 impl TlsServer {
     pub fn new(certs: Vec<rustls::Certificate>, key: rustls::PrivateKey) -> TlsServer {
-        let mut tls_config = rustls::ServerConfig::new();
+        let client_auth = rustls::NoClientAuth::new();
+        let mut tls_config = rustls::ServerConfig::new(client_auth);
         let cache = rustls::ServerSessionMemoryCache::new(1024);
         tls_config.set_persistence(cache);
         tls_config.ticketer = rustls::Ticketer::new();

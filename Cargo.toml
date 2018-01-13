@@ -10,12 +10,13 @@ repository = "https://github.com/SergioBenitez/hyper-sync-rustls"
 
 [features]
 default = ["client", "server"]
-client = ["webpki-roots"]
+client = ["webpki-roots", "webpki"]
 server = []
 
 [dependencies]
-webpki-roots = { version = "0.13", optional = true }
-rustls = "0.11"
+webpki-roots = { version = "0.14", optional = true }
+webpki = { version = "0.18.0-alpha", optional = true }
+rustls = "0.12"
 
 [dependencies.hyper]
 version = "0.10"

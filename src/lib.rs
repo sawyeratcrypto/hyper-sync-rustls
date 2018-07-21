@@ -223,13 +223,14 @@ pub struct TlsServer {
 
 #[cfg(feature = "server")]
 impl TlsServer {
+    /// Panics if `key` is invalid.
     pub fn new(certs: Vec<rustls::Certificate>, key: rustls::PrivateKey) -> TlsServer {
         let client_auth = rustls::NoClientAuth::new();
         let mut tls_config = rustls::ServerConfig::new(client_auth);
         let cache = rustls::ServerSessionMemoryCache::new(1024);
         tls_config.set_persistence(cache);
         tls_config.ticketer = rustls::Ticketer::new();
-        tls_config.set_single_cert(certs, key);
+        tls_config.set_single_cert(certs, key).expect("invalid key");
 
         TlsServer {
             cfg: Arc::new(tls_config),

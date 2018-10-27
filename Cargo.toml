@@ -1,6 +1,6 @@
 [package]
 name = "hyper-sync-rustls"
-version = "0.3.0-rc.3"
+version = "0.3.0-rc.4"
 authors = ["Sergio Benitez <sb@sergio.bz>"]
 license = "MIT/Apache-2.0"
 readme = "README.md"
@@ -16,7 +16,7 @@ server = []
 [dependencies]
 webpki-roots = { version = "0.15", optional = true }
 webpki = { version = "0.18", optional = true }
-rustls = "0.13"
+rustls = "0.14"
 
 [dependencies.hyper]
 version = "0.10"

@@ -322,7 +322,7 @@ pub mod util {
         reader.read_line(&mut first_line).map_err(Error::Io)?;
         reader.seek(io::SeekFrom::Start(0)).map_err(Error::Io)?;
 
-        let private_keys_fn = match first_line.trim_right() {
+        let private_keys_fn = match first_line.trim_end() {
             "-----BEGIN RSA PRIVATE KEY-----" => pemfile::rsa_private_keys,
             "-----BEGIN PRIVATE KEY-----" => pemfile::pkcs8_private_keys,
             _ => return Err(Error::BadKey),

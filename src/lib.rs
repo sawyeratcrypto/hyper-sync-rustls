@@ -284,6 +284,7 @@ pub mod util {
     impl error::Error for Error {
         fn description(&self) -> &str {
             match *self {
+                #[allow(deprecated)]
                 Error::Io(ref e) => e.description(),
                 Error::BadCerts => "the contents of the certificates file were invalid",
                 Error::BadKeyCount => "the private key file contained more than one key",

@@ -16,7 +16,7 @@ server = []
 [dependencies]
 webpki-roots = { version = "0.19", optional = true }
 webpki = { version = "0.21", optional = true }
-rustls = "0.17"
+rustls = "0.19"
 
 [dependencies.hyper]
 version = "0.10"
